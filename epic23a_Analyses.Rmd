@@ -1,5 +1,5 @@
 ---
-title: "EPiC_23a Analysis Script"
+title: "EPiC_23a Data Processing Script 2"
 author: "Nicholas Coles"
 date: "`r Sys.Date()`"
 output: word_document
@@ -53,7 +53,7 @@ memory.limit(size = 25000)
 
 # Load data
 ```{r}
-DF <- readRDS('DF.rds') 
+DF <- readRDS('C:/Users/Nicholas Coles work/Desktop/local/DF.rds') 
 ```
 
 # Create the mega-model
@@ -148,10 +148,123 @@ results <- sapply(FUN = MainAnalyses,
 rm(t, t.list, d, m, m.emm)
 
 saveRDS(results, 'results.Rds')
+
+#results <- readRDS('C:/Users/Nicholas Coles work/Desktop/local/results.Rds')
 ```
 
+# Figure 1
+```{r}
+# open results
+#results <- readRDS('results.Rds')
+
+# create dataframe containing contrasts
+DF.f1.contrasts <- bind_rows(results) %>%
+  select(contrast:estimate, z.ratio, p.value, team) %>%
+  mutate(p.value = stars.pval(p.value),
+         p.value = if_else(
+           condition = p.value == " ",
+           true = "n.s.",
+           false = if_else(
+             condition = p.value == "*",
+             true = "*",
+             false = " "
+           )
+         ),
+         estimate = round(estimate, 2)) %>%
+  pivot_wider(names_from = contrast,
+              values_from = c(estimate, z.ratio, p.value))
+
+# create dataframe containing baseline performance
+DF.f1.baselines <- DF %>%
+  filter(team == "baseline_mean" |
+           team == "baseline_random") %>%
+  group_by(team, scenario) %>%
+  summarise(m.err = mean(error)) %>%
+  pivot_wider(names_from = team,
+              values_from = m.err)
+
+# create dataframe containing team performance
+DF.f1.teams <- DF %>%
+  filter(team != "team 3 (random)",
+         team != "team 4 (random)",
+         team != "team 9 (random)",
+         team != "baseline_mean",
+         team != "baseline_random",
+         team != "baseline_tailored") %>%
+  group_by(team, scenario) %>%
+  summarise(m.err = mean(error))
+
+# merge dataframes
+DF.f1 <-
+  full_join(x = DF.f1.contrasts,
+            y = DF.f1.baselines) %>%
+  full_join(x = .,
+            y = DF.f1.teams) %>%
+  mutate(
+    scenario = factor(scenario,
+                      labels = c('across-time',
+                                 'across-subject',
+                                 'across-emotion' ,
+                                 'across-induction')),
+    scenario = factor(scenario,
+                      levels = c('across-subject',
+                                 'across-emotion' ,
+                                 'across-induction',
+                                 'across-time')),
+    team = factor(team,
+                  levels = paste0('team ',
+                                  seq(12, 1)))
+  )
+
+rm(DF.f1.baselines, DF.f1.contrasts, DF.f1.teams)
+```
+
+Plot figure
+```{r}
+ggplot(DF.f1,
+       aes(x = m.err,
+           y = team)) +
+  
+  # facet plot
+  facet_wrap(~ scenario,
+             nrow = 4,
+             ncol = 1) +
+  
+  # create lollipop plot
+  geom_segment(aes(y = team, 
+                   yend = team, 
+                   x = 0, 
+                   xend = m.err),
+               colour = "grey40") +
+  geom_point(aes(color = team),
+             size = 2) +
+  
+  # add lines for baseline_random and baseline_mean performance
+  geom_vline(linetype = 'dotted',
+             aes(xintercept = baseline_random),
+             colour = '#3366FF') +
+  geom_vline(linetype = 'dashed',
+             aes(xintercept = baseline_mean),
+             colour = '#3366FF') +
+  
+  # add summary statistic text (to show where models significantly differed from mean baseline)
+  geom_text(aes(x = baseline_mean + .15,
+                label = paste0(p.value__mean)),
+            size = 3,
+            hjust = 0) +
+  ylab('model developers') +
+  xlab('mean absolute prediction error') +
+  scale_x_continuous(expand =
+                       expansion(mult = c(0, .05))) +
+  theme(legend.position = "none")
+```
+
+
+
+
+
 # Figure 0a
-This figure could be cool because it could demonstrate that the test data has the same differentiation as the Sharma dataset.
+This figure could be cool because it could demonstrate that the test data has the same differentiation as the Sharma dataset. Test change
 
 Could be more trouble than it's worth though.
 
@@ -224,203 +337,9 @@ ggplot(data = f0.dfa,
 # Figure 0b
 
 
-# Old Figure 1
-```{r}
-#results <- readRDS('results.Rds')
-
-# create dataframe containing contrasts
-DF.f1.contrasts <- bind_rows(results) %>%
-  select(contrast:estimate, z.ratio, p.value, team) %>%
-  mutate(p.value = stars.pval(p.value),
-         estimate = round(estimate, 2)) %>%
-  pivot_wider(names_from = contrast,
-              values_from = c(estimate, z.ratio, p.value))
-
-# create dataframe containing baseline performance
-DF.f1.baselines <- DF %>%
-  filter(team == "baseline_mean" |
-           team == "baseline_random") %>%
-  group_by(team, scenario) %>%
-  summarise(m.err = mean(error)) %>%
-  pivot_wider(names_from = team,
-              values_from = m.err)
-
-# create dataframe containing team performance
-DF.f1.teams <- DF %>%
-  filter(
-    team != "team 3 (random)",
-    team != "team 4 (random)",
-    team != "team 9 (random)",
-    team != "baseline_mean",
-    team != "baseline_random",
-    team != "baseline_tailored"
-  ) %>%
-  group_by(team, scenario) %>%
-  summarise(m.err = mean(error))
-
-# merge dataframes
-DF.f1 <-
-  full_join(x = DF.f1.contrasts,
-            y = DF.f1.baselines) %>%
-  full_join(x = .,
-            y = DF.f1.teams) %>%
-  mutate(
-    scenario =
-      factor(
-        scenario,
-        labels =
-          c(
-            'across-time validation',
-            'across-subject validation',
-            'across-emotion validation' ,
-            'across-induction validation'
-          )
-      ),
-    scenario =
-      factor(
-        scenario,
-        levels = c(
-          'across-subject validation',
-          'across-emotion validation' ,
-          'across-induction validation',
-          'across-time validation'
-        )
-      ),
-    team = factor(team,
-                  levels = paste0('team ',
-                                  seq(12, 1)))
-  )
-
-rm(DF.f1.baselines, DF.f1.contrasts, DF.f1.teams)
-```
-
-Summary statistics
-```{r}
-# results from baseline__rand
-DF.f1 %>%
-  filter(!is.na(estimate__rand)) %>%
-  summarise(
-    min.diff = min(estimate__rand),
-    max.diff = max(estimate__rand),
-    min.z = min(z.ratio),
-    max.z = max(z.ratio)
-  )
-
-# results from baseline__mean
-DF.f1 %>%
-  filter(estimate__mean > 0) %>%
-  group_by(scenario) %>%
-  summarise(
-    min.diff = min(estimate__mean),
-    max.diff = max(estimate__mean),
-    min.z = min(z.ratio),
-    max.z = max(z.ratio)
-  ) %>%
-  View()
-
-DF.f1 %>%
-  filter(estimate__mean > 0,
-         scenario == "across-time validation") %>%
-  View()
-
-# how often did models beat baseline
-tmp <- DF.f1 %>%
-  mutate(
-    beat_mean =
-      if_else(
-        estimate__mean > 0 &
-          p.value__mean != " ",
-        true = "yes",
-        false = "no"
-      ),
-    
-    beat_rand =
-      if_else(
-        estimate__rand > 0 &
-          p.value__rand != " ",
-        true = "yes",
-        false = "no"
-      )
-  )
-
-tmp$beat_rand %>% table %>% prop.table
-
-tmp$beat_mean %>% table %>% prop.table
-
-# what is overall accuracy of each model
-tmp <- DF %>%
-  group_by(team) %>%
-  summarise(m.err = mean(error)) %>%
-  arrange(m.err)
-
-# team 2 and 10 are similar (worst similar pair)
-# for team 2, across-subject and across-time were similar
-# for team 10, across-time was much worse
-tmp.2.10 <- DF.f1 %>%
-  filter(team == "team 2" | team == "team 10") %>%
-  arrange(team, m.err)
-
-# team 6 and 12 (better similar pair)
-# similar inferences about across-subject vs. across-time. Opposite inferences about across-induction and across-time
-tmp.6.12 <- DF.f1 %>%
-  filter(team == "team 6" | team == "team 12") %>%
-  arrange(team, m.err)
-
-# team 9 and 11 (best pair)
-# opposite inferences about across-time vs. across-subject
-tmp.9.11 <- DF.f1 %>%
-  filter(team == "team 9" | team == "team 11") %>%
-  arrange(team, m.err)
-```
-
-Plot figure
-```{r}
-ggplot(DF.f1,
-       aes(x = m.err,
-           y = team)) +
-  facet_wrap( ~ scenario,
-              nrow = 4,
-              ncol = 1) +
-  
-  # add team performance bars
-  geom_bar(stat = "identity",
-           fill = '#C0C0F0') +
-  
-  # add lines for baseline_random and baseline_mean performance
-  geom_vline(linetype = 'dotted',
-             aes(xintercept = baseline_random),
-             colour = '#3366FF') +
-  geom_vline(linetype = 'dashed',
-             aes(xintercept = baseline_mean),
-             colour = '#3366FF') +
-  
-  # add summary statistic text
-  geom_text(aes(
-    x = baseline_random + .15,
-    label = paste0(estimate__rand %>%
-                     format(nsmall = 2),
-                   p.value__rand)
-  ),
-  size = 3,
-  hjust = 0) +
-  geom_text(aes(
-    x = baseline_mean + .15,
-    label = paste0(estimate__mean %>%
-                     format(nsmall = 2),
-                   p.value__mean)
-  ),
-  size = 3,
-  hjust = 0) +
-  ylab('model developers') +
-  xlab('mean absolute prediction error') +
-  scale_x_continuous(expand =
-                       expansion(mult = c(0, .05)))
-```
-
 
 
 # New idea for Figure 1
-
 ```{r}
 tmp <- DF %>% 
   group_by(team, scenario) %>% 
@@ -453,106 +372,6 @@ tmp <- DF %>%
 #   scale_y_reverse() +
 #   scale_x_discrete(position = "top") 
 ```
-
-
-##  flipped spaghetti                        
-```{r}
-g <- ggplot(tmp,
-            aes(y = scenario,
-                x = m.err,
-                group = team,
-                colour = team)) +
-  
-  # create baseline areas
-  geom_area(data = filter(tmp, 
-                          str_detect(team, "baseline_random")), 
-            colour = NA,
-            fill = "gray85") +
-  geom_area(data = filter(tmp, 
-                          str_detect(team, "baseline_mean")), 
-            colour = NA,
-            fill = "grey95") +
-  
-  # label  baseline areas
-  ## baseline_mean
-  annotate(geom = "line",
-           y = c(0 + .02, 
-                 tmp[tmp$team == "baseline_mean" &
-                       tmp$scenario == "across-subject", ]$m.err - .02),
-           x = .75,
-           size = 1,
-           colour = "grey60"
-           ) +
-  
-  annotate(geom = "text",
-           y = tmp[tmp$team == "baseline_mean" &
-                     tmp$scenario == "across-subject", ]$m.err / 2,
-           x = .75,
-           label = "above relying on sample averages",
-           colour = "grey60",
-           angle = 90,
-           vjust = -1)
-
-g <- g +
-  ## baseline_random
-  annotate(geom = "line",
-           y = c(0,
-                 # tmp[tmp$team == "baseline_mean" &
-                 #       tmp$scenario == "across-subject", ]$m.err + .02, 
-                 tmp[tmp$team == "baseline_random" &
-                       tmp$scenario == "across-subject", ]$m.err - .02),
-           x = .9,
-           size = 1,
-           colour = "grey40") +
-  
-  annotate(geom = "text",
-           y = 2,
-           x = .75,
-           label = "above chance",
-           angle = 90,
-           vjust = -1,
-           colour = "grey40") +
-  
-  # add teams
-  geom_line(data = filter(tmp, 
-                          !str_detect(team, "baseline")), 
-               alpha = .5, 
-            size = 2) +
-  
-  ggrepel::geom_text_repel(data = filter(tmp, 
-                                         !str_detect(team, "baseline"), 
-                                         scenario == "across-time"), 
-                           aes(label = team, 
-                               col = team),
-                           hjust = 1,
-                           nudge_x = 1,
-                           force = 2) + 
-  scale_x_discrete(expand = expansion(mult = c(.2, .2))) +
-  #scale_y_continuous(expand = expansion(mult = c(0, 0))) +
-  ylab('mean absolute prediction error') +
-  scale_y_reverse(expand = expansion(mult = c(0, 0))) +
-  theme(legend.position = "none",
-        axis.title.x = element_blank()) +
-  
-  ggrepel::geom_text_repel(data = filter(tmp, 
-                                         team == "team 5",
-                                         scenario == "across-subject"),
-                           aes(label = "italic('more')~accurate~across~subjects~than~time",
-                               col = team),
-                           nudge_y = .3,
-                           nudge_x = .9,
-                           parse = T) +
-  
-  ggrepel::geom_text_repel(data = filter(tmp, 
-                                         team == "team 8",
-                                         scenario == "across-subject"),
-                           aes(label = "italic('less')~accurate~across~subjects~than~time",
-                               col = team),
-                           nudge_y = -.3,
-                           nudge_x = .9,
-                           parse = T)
-```
-
 
 Next steps for this:
 * Annotate Team 5 and 8
