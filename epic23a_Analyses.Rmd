@@ -1,5 +1,5 @@
 ---
-title: "EPiC_23a Data Processing Script 2"
+title: "EPiC_23a Data Processing Script"
 author: "Nicholas Coles"
 date: "`r Sys.Date()`"
 output: word_document
@@ -153,6 +153,8 @@ saveRDS(results, 'results.Rds')
 ```
 
 # Figure 1
+
+## Prep dataframe
 ```{r}
 # open results
 #results <- readRDS('results.Rds')
@@ -202,15 +204,15 @@ DF.f1 <-
             y = DF.f1.teams) %>%
   mutate(
     scenario = factor(scenario,
-                      labels = c('across-time',
-                                 'across-subject',
-                                 'across-emotion' ,
-                                 'across-induction')),
+                      labels = c('time',
+                                 'subject',
+                                 'emotion' ,
+                                 'induction')),
     scenario = factor(scenario,
-                      levels = c('across-subject',
-                                 'across-emotion' ,
-                                 'across-induction',
-                                 'across-time')),
+                      levels = c('subject',
+                                 'emotion' ,
+                                 'induction',
+                                 'time')),
     team = factor(team,
                   levels = paste0('team ',
                                   seq(12, 1)))
@@ -219,7 +221,7 @@ DF.f1 <-
 rm(DF.f1.baselines, DF.f1.contrasts, DF.f1.teams)
 ```
 
-Plot figure
+## Plot figure
 ```{r}
 ggplot(DF.f1,
        aes(x = m.err,
@@ -257,9 +259,159 @@ ggplot(DF.f1,
   scale_x_continuous(expand =
                        expansion(mult = c(0, .05))) +
   theme(legend.position = "none")
+
+#rm(DF.f1)
 ```
 
+# Figure 2
 
+
+## Using a for loop
+
+```{r}
+for (t in unique(DF.f1$team)){
+  # identify if case is the team you want to highlight
+  d <- DF.f1 %>% 
+    mutate(highlight = 
+             if_else(team == t,
+                     1,
+                     0),
+           highlight = factor(highlight))
+  
+  # create plot
+  g <- ggplot(d,
+              aes(y = m.err,
+                  x = scenario,
+                  group = team)) +
+    # plot non-highlighted lines
+    geom_line(data = d %>% 
+                filter(highlight == 0),
+              color = "grey90",
+              linewidth = 2) +
+    
+    # plot highlighted line
+    geom_line(data = d %>% 
+                filter(highlight == 1),
+              color = "blue",
+              linewidth = 3)
+  
+  print(t)
+  }
+```
+
+## Using lapply (first try didn't work)
+```{r}
+fig2 <- 
+  lapply(X = unique(DF.f1$team),
+         FUN = function(x){
+           # identify if case is the team you want to highlight
+           d <- DF.f1 %>%
+             mutate(highlight =
+                      if_else(team == x,
+                              1,
+                              0),
+                    highlight = factor(highlight))
+           
+           # create plot
+           g <- ggplot(d,
+                       aes(y = m.err,
+                           x = scenario,
+                           group = team,
+                           colour = team)) +
+             
+             # plot non-highlighted lines
+             geom_line(data = d %>%
+                         filter(highlight == 0),
+                       colour = "grey90",
+                       linewidth = 2) +
+             
+             # plot highlighted line
+             geom_line(data = d %>%
+                         filter(highlight == 1),
+                       linewidth = 3)
+           
+           # return plot
+           return(g)
+         }
+       )
+
+par(mfrow = c(3, 4))
+
+fig2
+```
+
+## Using lapply (second try)
+```{r}
+fig2 <- 
+  lapply(X = unique(DF.f1$team),
+         FUN = function(x){
+           # identify if case is the team you want to highlight
+           d <- DF.f1 %>%
+             mutate(highlight =
+                      if_else(team == x,
+                              1,
+                              0),
+                    highlight = factor(highlight))
+           
+           # create plot
+           g <- ggplot(d,
+                       aes(y = m.err,
+                           x = scenario,
+                           group = team,
+                           colour = team,
+                           size = highlight)) +
+             
+             # plot non-highlighted lines in grey
+             geom_line(data = d %>%
+                         filter(highlight == 0),
+                       colour = "grey90",
+                       linewidth = 2) +
+             
+             # plot all lines, but then remove the non-highlighted ones
+             geom_line() +
+             scale_size_manual(values = c(NA, 3)) +
+             
+             # clean up aesthetics
+             # labs(title = x) +
+             #ylab('mean absolute prediction error') +
+             #xlab('validation') +
+             theme(legend.position = "none",
+                   #plot.title = element_text(hjust = 0.5),
+                   axis.title = element_blank(),
+                   #axis.text = element_blank()
+                   ) +
+             
+             # conditional formatting to manually make it look like a facet
+             {if(x != "team 10" & 
+                 x != "team 11" &
+                 x != "team 12")
+               theme(axis.title.x = element_blank(),
+                     axis.text.x = element_blank())} +
+             
+             {if(x != "team 1" & 
+                 x != "team 4" &
+                 x != "team 7" &
+                 x != "team 10")
+               theme(axis.title.y = element_blank(),
+                     axis.text.y = element_blank())}
+
+           # return plot
+           return(g)
+         }
+       )
+
+# 1,4,7 9 need x axis
+library(gridExtra)
+
+grid.arrange(grobs = fig2,
+             left = "mean absolute prediction error",
+             bottom = "validation")
+```
+
+Using facetting
+```{r}
+
+```
 
 
 
