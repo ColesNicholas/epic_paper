@@ -1,5 +1,5 @@
 ---
-title: "EPiC_23a Data Processing Script"
+title: "EPiC_23a Analysis Script"
 author: "Nicholas Coles"
 date: "`r Sys.Date()`"
 output: word_document
