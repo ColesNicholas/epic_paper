@@ -204,15 +204,15 @@ DF.f1 <-
             y = DF.f1.teams) %>%
   mutate(
     scenario = factor(scenario,
-                      labels = c('time',
-                                 'subject',
-                                 'emotion' ,
-                                 'induction')),
+                      labels = c('across-time validation',
+                                 'across-subject validation',
+                                 'across-emotion validation' ,
+                                 'across-induction validation')),
     scenario = factor(scenario,
-                      levels = c('subject',
-                                 'emotion' ,
-                                 'induction',
-                                 'time')),
+                      levels = c('across-subject validation',
+                                 'across-emotion validation' ,
+                                 'across-induction validation',
+                                 'across-time validation')),
     team = factor(team,
                   levels = paste0('team ',
                                   seq(12, 1)))
@@ -221,7 +221,7 @@ DF.f1 <-
 rm(DF.f1.baselines, DF.f1.contrasts, DF.f1.teams)
 ```
 
-## Plot figure
+## Plot figure (horizontal)
 ```{r}
 fig1 <-
   ggplot(DF.f1,
@@ -266,6 +266,97 @@ fig1 <-
 #rm(DF.f1)
 ```
 
+## Plot figure (vertical)
+```{r}
+fig1 <-
+  ggplot(DF.f1,
+         aes(x = team,
+             y = m.err)) +
+  
+  # facet plot
+  facet_wrap(~ scenario,
+             nrow = 4,
+             ncol = 1) +
+  # reverse x scale
+  scale_y_reverse(expand =
+                    expansion(mult = c(0, .05))) +
+  
+  # create lollipop plot
+  geom_segment(aes(x = team, 
+                   xend = team, 
+                   y = 2.75, 
+                   yend = m.err),
+               colour = "grey90",
+               linewidth = 1.5) +
+  geom_point(aes(color = team),
+             size = 4) +
+  
+  # add lines for baseline_random and baseline_mean performance
+  geom_hline(linetype = 'dotted',
+             aes(yintercept = baseline_random),
+             colour = '#3366FF') +
+  geom_hline(linetype = 'dashed',
+             aes(yintercept = baseline_mean),
+             colour = '#3366FF') +
+  
+  # add summary statistic text (to show where models significantly differed from mean baseline)
+  geom_text(aes(y = baseline_mean + 1,
+                label = paste0(p.value__mean)),
+            size = 3,
+            hjust = 0) +
+  ylab('model developers') +
+  xlab('mean absolute prediction error') +
+  theme(legend.position = "none")
+
+#rm(DF.f1)
+```
+
+## Plot figure (vertical, non-flipped)
+```{r}
+fig1 <-
+  ggplot(DF.f1,
+         aes(x = team,
+             y = m.err)) +
+  
+  # facet plot
+  facet_wrap(~ scenario,
+             nrow = 4,
+             ncol = 1) +
+  # reverse x scale
+  scale_y_continuous(expand =
+                       expansion(mult = c(0, .05))) +
+  
+  # create lollipop plot
+  geom_segment(aes(x = team, 
+                   xend = team, 
+                   y = 0, 
+                   yend = m.err),
+               colour = "grey90",
+               linewidth = 1.5) +
+  geom_point(aes(color = team),
+             size = 4) +
+  
+  # add lines for baseline_random and baseline_mean performance
+  geom_hline(linetype = 'dotted',
+             aes(yintercept = baseline_random),
+             colour = '#3366FF') +
+  geom_hline(linetype = 'dashed',
+             aes(yintercept = baseline_mean),
+             colour = '#3366FF') +
+  
+  # add summary statistic text (to show where models significantly differed from mean baseline)
+  geom_text(aes(y = baseline_mean + 1,
+                label = paste0(p.value__mean)),
+            size = 3,
+            hjust = 0) +
+  ylab('model developers') +
+  xlab('mean absolute prediction error') +
+  theme(legend.position = "none")
+
+#rm(DF.f1)
+```
+
+
 # Figure 2
 ```{r}
 fig2.list <- 
@@ -277,7 +368,12 @@ fig2.list <-
                       if_else(team == x,
                               1,
                               0),
-                    highlight = factor(highlight))
+                    highlight = factor(highlight),
+                    scenario = factor(scenario,
+                                      labels = c('subject',
+                                                 'emotion' ,
+                                                 'induction',
+                                                 'time')))
            
            # create plot
            g <- ggplot(d,
@@ -298,24 +394,23 @@ fig2.list <-
              scale_size_manual(values = c(NA, 3)) +
              
              # clean up aesthetics
+             labs(title = x) +
              theme(legend.position = "none",
-                   axis.title = element_blank(),
-                   ) +
+                   title = element_text(size = 8),
+                   axis.title = element_blank()) +
              scale_y_reverse() +
              
              # conditional formatting to manually make it look like a facet
              {if(x != "team 10" & 
                  x != "team 11" &
                  x != "team 12")
-               theme(axis.title.x = element_blank(),
-                     axis.text.x = element_blank())} +
+               theme(axis.text.x = element_blank())} +
              
              {if(x != "team 1" & 
                  x != "team 4" &
                  x != "team 7" &
                  x != "team 10")
-               theme(axis.title.y = element_blank(),
-                     axis.text.y = element_blank())}
+               theme(axis.text.y = element_blank())}
 
            # return plot
            return(g)
@@ -348,6 +443,7 @@ Particpiants encountered 4 inductions of two affective states while providing mo
 
 Data are split for four types of validation
 
+## Prep
 ```{r}
 # add video label
 DF <- DF %>% 
@@ -368,7 +464,12 @@ DF <- DF %>%
                      true = "relaxing",
                      false = "scary")
                )
-             )
+             ),
+         
+         # rename folds to make it easier for the reader to understand
+         fold = if_else(fold == "fold_0",
+                        "fold 1",
+                        "fold 2")
          )
 
 # create participant level summaries
@@ -378,7 +479,7 @@ f0.dfa <- DF %>%
   select(sub_orig, vid_orig, `targeted emotion`, time, scenario, fold, outcome, test) %>% 
   pivot_wider(names_from = 'outcome',
               values_from = 'test') %>% 
-  group_by(sub_orig, `targeted emotion`) %>% 
+  group_by(sub_orig, fold, `targeted emotion`) %>% 
   summarise(m.val = mean(valence),
             m.aro = mean(arousal))
 
@@ -394,19 +495,43 @@ f0.dfb <- DF %>%
             sd.val = sd(valence),
             m.aro = mean(arousal),
             sd.aro = sd(arousal))
+```
 
+
+## Plot
+```{r}
 ggplot(data = f0.dfa,
        aes(x = m.val,
            y = m.aro,
-           fill = `targeted emotion`
-           )
-       ) +
+           fill = `targeted emotion`)) +
+  # add midpoints
+  geom_vline(xintercept = 5,
+             linetype = "dashed",
+             color = "grey70") +
+  
+  geom_hline(yintercept = 5,
+             linetype = "dashed",
+             color = "grey70") +
+  
+  # add video-specific ellipses and participant level mean ratings
   stat_ellipse(geom = "polygon",
-               alpha = .2) +
-  geom_point(aes(color = `targeted emotion`)) +
+                alpha = .2) +
+  geom_point(aes(color = `targeted emotion`,
+                 shape = fold),
+             size = 2) +
+  
+  # fit axes
+  scale_x_continuous(breaks = seq(from = .5,
+                                  to = 9.5,
+                                  by = 3)) + 
+  scale_y_continuous(breaks = seq(from = .5,
+                                  to = 9.5,
+                                  by = 3)) +
   ylab('mean valence reports') +
   xlab('mean arousal reports')
 ```
+
+
 
 # Figure 0b
 
