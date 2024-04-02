@@ -26,7 +26,7 @@ Ipak <- function(pkg){
 # vector of necessary packages
 packages <- c('tidyverse', 'lme4',
               'lmerTest', 'emmeans',
-              'gtools')
+              'gtools', 'gridExtra')
 
 # using vector of packages, call ipak function
 Ipak(packages)
@@ -267,83 +267,6 @@ fig1 <-
 ```
 
 # Figure 2
-
-
-## Using a for loop
-
-```{r}
-for (t in unique(DF.f1$team)){
-  # identify if case is the team you want to highlight
-  d <- DF.f1 %>% 
-    mutate(highlight = 
-             if_else(team == t,
-                     1,
-                     0),
-           highlight = factor(highlight))
-  
-  # create plot
-  g <- ggplot(d,
-              aes(y = m.err,
-                  x = scenario,
-                  group = team)) +
-    # plot non-highlighted lines
-    geom_line(data = d %>% 
-                filter(highlight == 0),
-              color = "grey90",
-              linewidth = 2) +
-    
-    # plot highlighted line
-    geom_line(data = d %>% 
-                filter(highlight == 1),
-              color = "blue",
-              linewidth = 3)
-  
-  print(t)
-  }
-```
-
-## Using lapply (first try didn't work)
-```{r}
-fig2 <- 
-  lapply(X = unique(DF.f1$team),
-         FUN = function(x){
-           # identify if case is the team you want to highlight
-           d <- DF.f1 %>%
-             mutate(highlight =
-                      if_else(team == x,
-                              1,
-                              0),
-                    highlight = factor(highlight))
-           
-           # create plot
-           g <- ggplot(d,
-                       aes(y = m.err,
-                           x = scenario,
-                           group = team,
-                           colour = team)) +
-             
-             # plot non-highlighted lines
-             geom_line(data = d %>%
-                         filter(highlight == 0),
-                       colour = "grey90",
-                       linewidth = 2) +
-             
-             # plot highlighted line
-             geom_line(data = d %>%
-                         filter(highlight == 1),
-                       linewidth = 3)
-           
-           # return plot
-           return(g)
-         }
-       )
-
-par(mfrow = c(3, 4))
-
-fig2
-```
-
-## Using lapply (second try)
 ```{r}
 fig2.list <- 
   lapply(X = unique(DF.f1$team),
@@ -399,17 +322,14 @@ fig2.list <-
          }
        )
 
-# 1,4,7 9 need x axis
-library(gridExtra)
 
 fig2 <- grid.arrange(grobs = fig2.list,
                      left = "mean absolute prediction error",
                      bottom = "validation")
+```
 
-
-grid.arrange(fig1, fig2,
-             ncol = 2)
-
+For Stan
+```{r}
 library('cowplot')
 plot_grid(fig1, NULL, fig2,
           rel_widths = c(1, .1, 1),
@@ -417,14 +337,7 @@ plot_grid(fig1, NULL, fig2,
           ncol = 3)
 ```
 
-Using facetting
-```{r}
-
-```
-
-
-
-# Figure 0a
+# Figure 3
 This figure could be cool because it could demonstrate that the test data has the same differentiation as the Sharma dataset. Test change
 
 Could be more trouble than it's worth though.
