@@ -223,23 +223,28 @@ rm(DF.f1.baselines, DF.f1.contrasts, DF.f1.teams)
 
 ## Plot figure
 ```{r}
-ggplot(DF.f1,
-       aes(x = m.err,
-           y = team)) +
+fig1 <-
+  ggplot(DF.f1,
+         aes(x = m.err,
+             y = team)) +
   
   # facet plot
   facet_wrap(~ scenario,
              nrow = 4,
              ncol = 1) +
+  # reverse x scale
+  scale_x_reverse(expand =
+                    expansion(mult = c(0, .05))) +
   
   # create lollipop plot
   geom_segment(aes(y = team, 
                    yend = team, 
-                   x = 0, 
+                   x = 2.75, 
                    xend = m.err),
-               colour = "grey40") +
+               colour = "grey90",
+               linewidth = 1.5) +
   geom_point(aes(color = team),
-             size = 2) +
+             size = 4) +
   
   # add lines for baseline_random and baseline_mean performance
   geom_vline(linetype = 'dotted',
@@ -250,14 +255,12 @@ ggplot(DF.f1,
              colour = '#3366FF') +
   
   # add summary statistic text (to show where models significantly differed from mean baseline)
-  geom_text(aes(x = baseline_mean + .15,
+  geom_text(aes(x = baseline_mean - .05,
                 label = paste0(p.value__mean)),
             size = 3,
             hjust = 0) +
   ylab('model developers') +
   xlab('mean absolute prediction error') +
-  scale_x_continuous(expand =
-                       expansion(mult = c(0, .05))) +
   theme(legend.position = "none")
 
 #rm(DF.f1)
@@ -342,7 +345,7 @@ fig2
 
 ## Using lapply (second try)
 ```{r}
-fig2 <- 
+fig2.list <- 
   lapply(X = unique(DF.f1$team),
          FUN = function(x){
            # identify if case is the team you want to highlight
@@ -365,21 +368,17 @@ fig2 <-
              geom_line(data = d %>%
                          filter(highlight == 0),
                        colour = "grey90",
-                       linewidth = 2) +
+                       linewidth = 1) +
              
              # plot all lines, but then remove the non-highlighted ones
              geom_line() +
              scale_size_manual(values = c(NA, 3)) +
              
              # clean up aesthetics
-             # labs(title = x) +
-             #ylab('mean absolute prediction error') +
-             #xlab('validation') +
              theme(legend.position = "none",
-                   #plot.title = element_text(hjust = 0.5),
                    axis.title = element_blank(),
-                   #axis.text = element_blank()
                    ) +
+             scale_y_reverse() +
              
              # conditional formatting to manually make it look like a facet
              {if(x != "team 10" & 
@@ -403,9 +402,19 @@ fig2 <-
 # 1,4,7 9 need x axis
 library(gridExtra)
 
-grid.arrange(grobs = fig2,
-             left = "mean absolute prediction error",
-             bottom = "validation")
+fig2 <- grid.arrange(grobs = fig2.list,
+                     left = "mean absolute prediction error",
+                     bottom = "validation")
+
+
+grid.arrange(fig1, fig2,
+             ncol = 2)
+
+library('cowplot')
+plot_grid(fig1, NULL, fig2,
+          rel_widths = c(1, .1, 1),
+          labels = c('A', '', 'B'),
+          ncol = 3)
 ```
 
 Using facetting
