@@ -533,7 +533,20 @@ ggplot(data = f0.dfa,
 
 
 
-# Figure 0b
+# Figure 4
+```{r}
+tmp <- read.csv('C:/Users/Nicholas Coles work/Desktop/local/EPIC-physiology-examples/ecg_s1-test_sub_12_vid_9_short.csv')
+
+tmp <- tmp %>% 
+  pivot_longer(cols = c(ecg, noise))
+
+ggplot(data = tmp,
+       aes(x = time,
+           y = value)) +
+  facet_plot(name)
+  geom_line(alpha = .5)
+```
+
 
 
 
