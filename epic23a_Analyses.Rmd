@@ -204,18 +204,22 @@ DF.f1 <-
             y = DF.f1.teams) %>%
   mutate(
     scenario = factor(scenario,
-                      labels = c('across-time validation',
-                                 'across-subject validation',
-                                 'across-emotion validation' ,
-                                 'across-induction validation')),
+                      labels = c('validation: across-time (t)',
+                                 'validation: across subject (s)',
+                                 'validation: across emotion (e)' ,
+                                 'validation: across induction (i)')),
     scenario = factor(scenario,
-                      levels = c('across-subject validation',
-                                 'across-emotion validation' ,
-                                 'across-induction validation',
-                                 'across-time validation')),
+                      levels = c('validation: across subject (s)',
+                                 'validation: across emotion (e)' ,
+                                 'validation: across induction (i)',
+                                 'validation: across-time (t)')),
     team = factor(team,
                   levels = paste0('team ',
-                                  seq(12, 1)))
+                                  seq(1, 12))),
+    team_trunc = str_remove(team,
+                            fixed("team ")),
+    team_trunc = factor(team_trunc,
+                        levels = seq(1, 12))
   )
 
 rm(DF.f1.baselines, DF.f1.contrasts, DF.f1.teams)
@@ -285,7 +289,7 @@ dev.off()
 ```{r}
 fig1 <-
   ggplot(DF.f1,
-         aes(x = team,
+         aes(x = team_trunc,
              y = m.err)) +
   
   # facet plot
@@ -297,13 +301,13 @@ fig1 <-
                     expansion(mult = c(0, .05))) +
   
   # create lollipop plot
-  geom_segment(aes(x = team, 
-                   xend = team, 
+  geom_segment(aes(x = team_trunc, 
+                   xend = team_trunc, 
                    y = 2.75, 
                    yend = m.err),
                colour = "grey90",
                linewidth = 1.5) +
-  geom_point(aes(color = team),
+  geom_point(aes(color = team_trunc),
              size = 4) +
   
   # add lines for baseline_random and baseline_mean performance
@@ -315,12 +319,11 @@ fig1 <-
              colour = '#3366FF') +
   
   # add summary statistic text (to show where models significantly differed from mean baseline)
-  geom_text(aes(y = baseline_mean + 1,
+  geom_text(aes(y = baseline_mean - .5,
                 label = paste0(p.value__mean)),
-            size = 3,
-            hjust = 0) +
-  ylab('model developers') +
-  xlab('mean absolute prediction error') +
+            size = 3) +
+  xlab('team') +
+  ylab('mean absolute prediction error') +
   theme(legend.position = "none")
 
 #rm(DF.f1)
@@ -385,10 +388,10 @@ fig2.list <-
                               0),
                     highlight = factor(highlight),
                     scenario = factor(scenario,
-                                      labels = c('subject',
-                                                 'emotion' ,
-                                                 'induction',
-                                                 'time')))
+                                      labels = c('s',
+                                                 'e' ,
+                                                 'i',
+                                                 't')))
            
            # create plot
            g <- ggplot(d,
@@ -448,7 +451,7 @@ png(file = "Figure2.png",
     res = 600)
 
 grid.arrange(grobs = fig2.list,
-             left = "mean absolute prediction error",
+             left = "",
              bottom = "validation")
 
 dev.off()
@@ -459,7 +462,7 @@ For Stan
 library('cowplot')
 plot_grid(fig1, fig2,
           labels = c('A', 'B'),
-          nrow = 2)
+          ncol = 2)
 ```
 
 # Figure 3
@@ -557,8 +560,8 @@ ggplot(data = f0.dfa,
   scale_y_continuous(breaks = seq(from = .5,
                                   to = 9.5,
                                   by = 3)) +
-  ylab('mean valence reports') +
-  xlab('mean arousal reports')
+  xlab('mean valence reports') +
+  ylab('mean arousal reports')
 ```
 
 
@@ -568,13 +571,23 @@ ggplot(data = f0.dfa,
 tmp <- read.csv('C:/Users/Nicholas Coles work/Desktop/local/EPIC-physiology-examples/ecg_s1-test_sub_12_vid_9_short.csv')
 
 tmp <- tmp %>% 
-  pivot_longer(cols = c(ecg, noise))
+  rename(real = ecg,
+         random = noise) %>% 
+  pivot_longer(cols = c(real, random)) %>% 
+  mutate(name = factor(name,
+                       levels = c('real',
+                                 'random')
+                       )
+         )
 
 ggplot(data = tmp,
        aes(x = time,
            y = value)) +
   facet_wrap(~ name) +
-  geom_line(alpha = .5)
+  geom_line(alpha = .5) +
+  ylab("value (mV)") +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
 ```
 
 # Figure 5
@@ -598,10 +611,9 @@ DF.f2.teams <- DF %>%
               true = "random",
               false = "real"),
     team = str_remove(team,
-                      fixed(" (random)")))
-  #) #%>% 
-  #pivot_wider(names_from = rand,
-  #            values_from = m.err)
+                      fixed(" (random)"))) %>% 
+  pivot_wider(names_from = rand,
+              values_from = m.err)
 
 # merge dataframes
 DF.f2 <- 
@@ -642,6 +654,76 @@ DF.f2 <-
 rm(DF.f2.contrasts, DF.f2.teams)
 ```
 
+## New plot
+```{r}
+DF.f2 <- DF.f2 %>% 
+  filter(team == 'team 3' |
+           team == 'team 4' |
+           team == 'team 9')
+```
+
+```{r}
+ggplot(DF.f2,
+       aes(y = team)) +
+  facet_wrap(~ scenario,
+             nrow = 4,
+             ncol = 1) +
+  
+  # create lollipop segments
+  geom_segment(aes(x = real,
+                   xend = random,
+                   y = team,
+                   yend = team),
+               linetype = "dotted",
+               colour = "grey90",
+               linewidth = 1.5) +
+  
+  geom_segment(aes(x = 0,
+                   xend = real,
+                   y = team,
+                   yend = team),
+               colour = "grey90",
+               linewidth = 1.5) +
+  
+  # plot real vs. simulated physiology
+  geom_point(data = DF.f2 %>% 
+               pivot_longer(cols = c(real, random)) %>% 
+               mutate(physiology = 
+                        factor(name,
+                               levels = c('real',
+                                          'random')
+                               )
+                      ),
+             aes(x = value,
+                 color = team,
+                 shape = physiology),
+             size = 3) +
+  scale_shape_manual(values = c(16, 13)) +
+  
+  # add descriptives
+  geom_text(aes(x = real + ((random - real) / 2),
+                label = paste0(p.value)),
+            size = 3,
+            vjust = -1) +
+  # aes
+  scale_color_manual(values = c("#C77CFF", "#619CFF", "#7CAE00"),
+                     guide = "none")
+  #theme(legend.position = "none")
+```
+
+geom_line(data = d %>%
+                         filter(highlight == 0),
+                       colour = "grey90",
+                       linewidth = 1)
+
+geom_segment(aes(y = team, 
+                   yend = team, 
+                   x = 2.75, 
+                   xend = m.err),
+               colour = "grey90",
+               linewidth = 1.5) +
+  geom_point(aes(color = team),
+             size = 3)
 
 ## Plot
 ```{r}
