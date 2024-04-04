@@ -157,7 +157,7 @@ saveRDS(results, 'results.Rds')
 ## Prep dataframe
 ```{r}
 # open results
-#results <- readRDS('results.Rds')
+#results <- readRDS('C:/Users/Nicholas Coles work/Desktop/local/results.Rds')
 
 # create dataframe containing contrasts
 DF.f1.contrasts <- bind_rows(results) %>%
@@ -244,7 +244,7 @@ fig1 <-
                colour = "grey90",
                linewidth = 1.5) +
   geom_point(aes(color = team),
-             size = 4) +
+             size = 3) +
   
   # add lines for baseline_random and baseline_mean performance
   geom_vline(linetype = 'dotted',
@@ -261,9 +261,24 @@ fig1 <-
             hjust = 0) +
   ylab('model developers') +
   xlab('mean absolute prediction error') +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        #axis.text = element_text(size = 8)
+        )
 
 #rm(DF.f1)
+```
+
+Print 
+```{r}
+png(file = "Figure1.png", 
+    width = 6.5, 
+    height = 7.6,
+    units = "in",
+    res = 600)
+
+fig1
+
+dev.off()
 ```
 
 ## Plot figure (vertical)
@@ -397,7 +412,8 @@ fig2.list <-
              labs(title = x) +
              theme(legend.position = "none",
                    title = element_text(size = 8),
-                   axis.title = element_blank()) +
+                   axis.title = element_blank(),
+                   axis.text = element_text(size = 8)) +
              scale_y_reverse() +
              
              # conditional formatting to manually make it look like a facet
@@ -423,13 +439,27 @@ fig2 <- grid.arrange(grobs = fig2.list,
                      bottom = "validation")
 ```
 
+Print 
+```{r}
+png(file = "Figure2.png", 
+    width = 6.5, 
+    height = 7.6,
+    units = "in",
+    res = 600)
+
+grid.arrange(grobs = fig2.list,
+             left = "mean absolute prediction error",
+             bottom = "validation")
+
+dev.off()
+```
+
 For Stan
 ```{r}
 library('cowplot')
-plot_grid(fig1, NULL, fig2,
-          rel_widths = c(1, .1, 1),
-          labels = c('A', '', 'B'),
-          ncol = 3)
+plot_grid(fig1, fig2,
+          labels = c('A', 'B'),
+          nrow = 2)
 ```
 
 # Figure 3
@@ -543,11 +573,123 @@ tmp <- tmp %>%
 ggplot(data = tmp,
        aes(x = time,
            y = value)) +
-  facet_plot(name)
+  facet_wrap(~ name) +
   geom_line(alpha = .5)
 ```
 
+# Figure 5
+```{r}
+sim.results <- readRDS('C:/Users/Nicholas Coles work/Desktop/local/sim.results.Rds')
 
+# create dataframe containing contrasts
+DF.f2.contrasts <- bind_rows(sim.results) %>% 
+  select(scenario, estimate, z.ratio, p.value, team) %>%
+  mutate(p.value = stars.pval(p.value),
+         estimate = round(estimate, 2))
+
+# create dataframe containing team performance
+DF.f2.teams <- DF %>% 
+  filter(grepl("team", team)) %>%
+  group_by(team, scenario) %>%
+  summarise(m.err = mean(error)) %>%
+  mutate(
+    rand =
+      if_else(grepl("random", team),
+              true = "random",
+              false = "real"),
+    team = str_remove(team,
+                      fixed(" (random)")))
+  #) #%>% 
+  #pivot_wider(names_from = rand,
+  #            values_from = m.err)
+
+# merge dataframes
+DF.f2 <- 
+  full_join(x = DF.f2.teams,
+            y = DF.f2.contrasts) %>%
+  mutate(
+    scenario =
+      factor(
+        scenario,
+        labels =
+          c(
+            'across-time validation',
+            'across-subject validation',
+            'across-emotion validation' ,
+            'across-induction validation'
+          )
+      ),
+    scenario =
+      factor(
+        scenario,
+        levels = c(
+          'across-subject validation',
+          'across-emotion validation' ,
+          'across-induction validation',
+          'across-time validation'
+        )
+      ),
+    team = factor(team,
+                  levels = paste0('team ',
+                                  seq(12, 1))),
+    highlight = if_else(team == "team 3" |
+                          team == "team 4" |
+                          team == "team 9",
+                        1,
+                        0)
+  )
+
+rm(DF.f2.contrasts, DF.f2.teams)
+```
+
+
+## Plot
+```{r}
+ggplot(DF.f2 %>% 
+         filter(team == 'team 3' |
+                  team == 'team 4' |
+                  team == 'team 9'),
+       aes(x = m.err,
+           y = team,
+           fill = team,
+           colour = team,
+           group = rand)) +
+  facet_wrap( ~ scenario,
+              nrow = 4,
+              ncol = 1) +
+  # add team performance bars
+  # create plot
+  geom_bar(stat= "identity",
+           position = 'dodge') +
+  geom_point(position = position_dodge(width = 1)) +
+  scale_fill_manual(values = c("#C77CFF", "#619CFF", "#7CAE00")) +
+  scale_color_manual(values = c("#C77CFF", "#619CFF", "#7CAE00"))
++
+  scale_size_manual(values = c(NA, 3))
+
+# add lines for baseline_mean performance
+# geom_vline(linetype = 'dashed',
+#            aes(xintercept = baseline_mean),
+#            colour = '#3366FF') +
+
+# add summary statistic text
+geom_text(aes(x = 1.75,
+label = paste0(estimate %>% 
+format(nsmall = 2), 
+p.value)
+),
+size = 3) +
+ylab('model developers') +
+xlab('mean absolute prediction error') +
+scale_x_continuous(expand = 
+expansion(mult = c(0, .05))
+) +
+scale_fill_manual(values=c("grey",
+"#C0C0F0")) +
+theme(legend.position = "top",
+legend.title = element_blank())
+
+```
 
 
 
