@@ -26,7 +26,8 @@ Ipak <- function(pkg){
 # vector of necessary packages
 packages <- c('tidyverse', 'lme4',
               'lmerTest', 'emmeans',
-              'gtools', 'gridExtra')
+              'gtools', 'gridExtra',
+              'cowplot')
 
 # using vector of packages, call ipak function
 Ipak(packages)
@@ -390,14 +391,16 @@ fig1.list <-
              # facet plot as title
              facet_wrap(~ scenario) +
              
-             # reverse x scale
-             scale_y_reverse(expand =
-                               expansion(mult = c(0, .05))) +
+             # fix y scale
+             scale_y_continuous(expand =
+                                  expansion(mult = c(0, .05)),
+                                limits = c(0, 2.7),
+                                breaks = c(.5, 1.5, 2.5)) +
   
   # create lollipop plot
   geom_segment(aes(x = team_trunc, 
                    xend = team_trunc, 
-                   y = 2.75, 
+                   y = 0, 
                    yend = m.err),
                colour = "grey90",
                linewidth = 1.5) +
@@ -413,7 +416,7 @@ fig1.list <-
              colour = '#3366FF') +
   
   # add summary statistic text (to show where models significantly differed from mean baseline)
-  geom_text(aes(y = baseline_mean - .5,
+  geom_text(aes(y = baseline_mean + .5,
                 label = paste0(p.value__mean)),
             size = 3) +
   theme(legend.position = "none",
@@ -477,7 +480,9 @@ fig2.list <-
              # clean up aesthetics
              theme(legend.position = "none",
                    axis.title = element_blank()) +
-             scale_y_reverse() +
+             scale_y_continuous(expand =
+                                  expansion(mult = c(0, .05)),
+                                limits = c(.5, 2.5)) +
              
              # conditional formatting to manually make it look like a facet
              {if(x != "team 10" & 
@@ -521,12 +526,6 @@ plot_grid(fig1, fig2,
           ncol = 2)
 
 dev.off()
-```
-
-For Stan
-```{r}
-library('cowplot')
-
 ```
 
 # Figure 3
@@ -644,9 +643,9 @@ tmp <- tmp %>%
                        )
          )
 
-ggplot(data = tmp,
-       aes(x = time,
-           y = value)) +
+fig.4 <- ggplot(data = tmp,
+                aes(x = time,
+                    y = value)) +
   facet_wrap(~ name) +
   geom_line(alpha = .5) +
   ylab("value (mV)") +
@@ -684,35 +683,23 @@ DF.f2 <-
   full_join(x = DF.f2.teams,
             y = DF.f2.contrasts) %>%
   mutate(
-    scenario =
-      factor(
-        scenario,
-        labels =
-          c(
-            'across-time validation',
-            'across-subject validation',
-            'across-emotion validation' ,
-            'across-induction validation'
-          )
-      ),
-    scenario =
-      factor(
-        scenario,
-        levels = c(
-          'across-subject validation',
-          'across-emotion validation' ,
-          'across-induction validation',
-          'across-time validation'
-        )
-      ),
+    scenario = factor(scenario,
+                      labels = c('across time',
+                                 'across subject',
+                                 'across emotion' ,
+                                 'across induction')),
+    scenario = factor(scenario,
+                      levels = c('across subject',
+                                 'across emotion' ,
+                                 'across induction',
+                                 'across time')),
     team = factor(team,
                   levels = paste0('team ',
-                                  seq(12, 1))),
-    highlight = if_else(team == "team 3" |
-                          team == "team 4" |
-                          team == "team 9",
-                        1,
-                        0)
+                                  seq(1, 12))),
+    team_trunc = str_remove(team,
+                            fixed("team ")),
+    team_trunc = factor(team_trunc,
+                        levels = seq(1, 12))
   )
 
 rm(DF.f2.contrasts, DF.f2.teams)
@@ -727,25 +714,25 @@ DF.f2 <- DF.f2 %>%
 ```
 
 ```{r}
-ggplot(DF.f2,
-       aes(y = team)) +
+fig.5 <- ggplot(DF.f2,
+       aes(x = team_trunc)) +
+  # facet plot
   facet_wrap(~ scenario,
-             nrow = 4,
-             ncol = 1) +
+             ncol = 4) +
   
   # create lollipop segments
-  geom_segment(aes(x = real,
-                   xend = random,
-                   y = team,
-                   yend = team),
+  geom_segment(aes(y = real,
+                   yend = random,
+                   x = team_trunc,
+                   xend = team_trunc),
                linetype = "dotted",
                colour = "grey90",
-               linewidth = 1.5) +
+               linewidth = 1) +
   
-  geom_segment(aes(x = 0,
-                   xend = real,
-                   y = team,
-                   yend = team),
+  geom_segment(aes(y = 0,
+                   yend = real,
+                   x = team_trunc,
+                   xend = team_trunc),
                colour = "grey90",
                linewidth = 1.5) +
   
@@ -758,36 +745,45 @@ ggplot(DF.f2,
                                           'random')
                                )
                       ),
-             aes(x = value,
-                 color = team,
+             aes(y = value,
+                 color = team_trunc,
                  shape = physiology),
-             size = 3) +
+             size = 4) +
   scale_shape_manual(values = c(16, 13)) +
   
   # add descriptives
-  geom_text(aes(x = real + ((random - real) / 2),
-                label = paste0(p.value)),
+  geom_text(aes(y = random,
+                label = paste0(estimate %>%
+                                 format(nsmall = 2),
+                               p.value)),
             size = 3,
-            vjust = -1) +
+            vjust = -1.2) +
+  
   # aes
-  scale_color_manual(values = c("#C77CFF", "#619CFF", "#7CAE00"),
-                     guide = "none")
-  #theme(legend.position = "none")
+  scale_color_manual(values = c("#B79F00", "#7CAE00", "#00B4F0"),
+                     guide = "none") +
+  xlab("team") +
+  ylab("mean absolute prediction error") +
+  scale_y_continuous(expand =
+                       expansion(mult = c(0, .05))) +
+  theme(legend.position = "bottom")
 ```
 
-geom_line(data = d %>%
-                         filter(highlight == 0),
-                       colour = "grey90",
-                       linewidth = 1)
+```{r}
+png(file = "Figure3.png", 
+    width = 6.5, 
+    height = 7.5,
+    units = "in",
+    res = 600)
 
-geom_segment(aes(y = team, 
-                   yend = team, 
-                   x = 2.75, 
-                   xend = m.err),
-               colour = "grey90",
-               linewidth = 1.5) +
-  geom_point(aes(color = team),
-             size = 3)
+plot_grid(fig.4, fig.5,
+          labels = c('A', 'B'),
+          nrow = 2,
+          rel_heights = c(1, 3))
+
+dev.off()
+```
+
 
 ## Plot
 ```{r}
