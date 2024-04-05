@@ -204,7 +204,7 @@ DF.f1 <-
             y = DF.f1.teams) %>%
   mutate(
     scenario = factor(scenario,
-                      labels = c('validation: across-time (t)',
+                      labels = c('validation: across time (t)',
                                  'validation: across subject (s)',
                                  'validation: across emotion (e)' ,
                                  'validation: across induction (i)')),
@@ -212,7 +212,7 @@ DF.f1 <-
                       levels = c('validation: across subject (s)',
                                  'validation: across emotion (e)' ,
                                  'validation: across induction (i)',
-                                 'validation: across-time (t)')),
+                                 'validation: across time (t)')),
     team = factor(team,
                   levels = paste0('team ',
                                   seq(1, 12))),
@@ -375,6 +375,65 @@ fig1 <-
 ```
 
 
+# Figure 1 (cowplot)
+```{r}
+fig1.list <-
+  lapply(X = levels(DF.f1$scenario),
+         FUN = function(x){
+           d <- DF.f1 %>% 
+             filter(scenario == x)
+           
+           g <- ggplot(d,
+                  aes(x = team_trunc,
+                      y = m.err)) +
+             
+             # facet plot as title
+             facet_wrap(~ scenario) +
+             
+             # reverse x scale
+             scale_y_reverse(expand =
+                               expansion(mult = c(0, .05))) +
+  
+  # create lollipop plot
+  geom_segment(aes(x = team_trunc, 
+                   xend = team_trunc, 
+                   y = 2.75, 
+                   yend = m.err),
+               colour = "grey90",
+               linewidth = 1.5) +
+  geom_point(aes(color = team_trunc),
+             size = 4) +
+  
+  # add lines for baseline_random and baseline_mean performance
+  geom_hline(linetype = 'dotted',
+             aes(yintercept = baseline_random),
+             colour = '#3366FF') +
+  geom_hline(linetype = 'dashed',
+             aes(yintercept = baseline_mean),
+             colour = '#3366FF') +
+  
+  # add summary statistic text (to show where models significantly differed from mean baseline)
+  geom_text(aes(y = baseline_mean - .5,
+                label = paste0(p.value__mean)),
+            size = 3) +
+  theme(legend.position = "none",
+        axis.title = element_blank()) +
+    
+    {if(x != "validation: across time (t)")
+               theme(axis.line.x = element_blank(),
+                     axis.ticks.x = element_blank(),
+                     axis.text.x = element_blank())}
+           
+           return(g)
+         })
+
+fig1 <- grid.arrange(grobs = fig1.list,
+             nrow = 4,
+             left = "mean absolute prediction error",
+             bottom = "team")
+```
+
+
 # Figure 2
 ```{r}
 fig2.list <- 
@@ -391,7 +450,8 @@ fig2.list <-
                                       labels = c('s',
                                                  'e' ,
                                                  'i',
-                                                 't')))
+                                                 't')),
+                    title = x)
            
            # create plot
            g <- ggplot(d,
@@ -401,6 +461,9 @@ fig2.list <-
                            colour = team,
                            size = highlight)) +
              
+             # make the title a facet (for aesthetic reasons)
+             facet_wrap(~ title) +
+             
              # plot non-highlighted lines in grey
              geom_line(data = d %>%
                          filter(highlight == 0),
@@ -409,27 +472,28 @@ fig2.list <-
              
              # plot all lines, but then remove the non-highlighted ones
              geom_line() +
-             scale_size_manual(values = c(NA, 3)) +
+             scale_size_manual(values = c(NA, 2)) +
              
              # clean up aesthetics
-             labs(title = x) +
              theme(legend.position = "none",
-                   title = element_text(size = 8),
-                   axis.title = element_blank(),
-                   axis.text = element_text(size = 8)) +
+                   axis.title = element_blank()) +
              scale_y_reverse() +
              
              # conditional formatting to manually make it look like a facet
              {if(x != "team 10" & 
                  x != "team 11" &
                  x != "team 12")
-               theme(axis.text.x = element_blank())} +
+               theme(axis.line.x = element_blank(),
+                     axis.ticks.x = element_blank(),
+                     axis.text.x = element_blank())} +
              
              {if(x != "team 1" & 
                  x != "team 4" &
                  x != "team 7" &
                  x != "team 10")
-               theme(axis.text.y = element_blank())}
+               theme(axis.text.y = element_blank(),
+                     axis.line.y = element_blank(),
+                     axis.ticks.y = element_blank())}
 
            # return plot
            return(g)
@@ -437,8 +501,10 @@ fig2.list <-
        )
 
 
+margin = theme(plot.margin = unit(c(4, 4, 4, 4), "points"))
+
 fig2 <- grid.arrange(grobs = fig2.list,
-                     left = "mean absolute prediction error",
+                     left = "",
                      bottom = "validation")
 ```
 
@@ -450,9 +516,9 @@ png(file = "Figure2.png",
     units = "in",
     res = 600)
 
-grid.arrange(grobs = fig2.list,
-             left = "",
-             bottom = "validation")
+plot_grid(fig1, fig2,
+          labels = c('A', 'B'),
+          ncol = 2)
 
 dev.off()
 ```
@@ -460,9 +526,7 @@ dev.off()
 For Stan
 ```{r}
 library('cowplot')
-plot_grid(fig1, fig2,
-          labels = c('A', 'B'),
-          ncol = 2)
+
 ```
 
 # Figure 3
