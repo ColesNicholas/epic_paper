@@ -482,7 +482,7 @@ fig2.list <-
                    axis.title = element_blank()) +
              scale_y_continuous(expand =
                                   expansion(mult = c(0, .05)),
-                                limits = c(.5, 2.5)) +
+                                limits = c(.6, 2.2)) +
              
              # conditional formatting to manually make it look like a facet
              {if(x != "team 10" & 
@@ -661,7 +661,7 @@ sim.results <- readRDS('C:/Users/Nicholas Coles work/Desktop/local/sim.results.R
 DF.f2.contrasts <- bind_rows(sim.results) %>% 
   select(scenario, estimate, z.ratio, p.value, team) %>%
   mutate(p.value = stars.pval(p.value),
-         estimate = round(estimate, 2))
+         estimate = round(estimate, 2) * -1)
 
 # create dataframe containing team performance
 DF.f2.teams <- DF %>% 
