@@ -510,7 +510,8 @@ margin = theme(plot.margin = unit(c(4, 4, 4, 4), "points"))
 
 fig2 <- grid.arrange(grobs = fig2.list,
                      left = "",
-                     bottom = "validation")
+                     bottom = "validation",
+                     widths=c(1.25, 1, 1))
 ```
 
 Print 
